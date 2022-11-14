@@ -12,3 +12,14 @@ class EmbeddingsLayer(tf.keras.layers.Layer):
     def call(self, x: tf.Tensor) -> tf.Tensor:
         x = self.embedding(x)
         return x
+
+class MLP(Layer):
+    def __init__(self, d_ff: int, d_output: int, activation: Activation):
+        super().__init__()
+        self.fc1 = Dense(d_ff, activation=activation)
+        self.fc2 = Dense(d_output)
+
+    def call(self, x: tf.Tensor) -> tf.Tensor:
+        x = self.fc1(x)
+        x = self.fc2(x)
+        return x
