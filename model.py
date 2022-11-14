@@ -105,3 +105,30 @@ class MultiHeadEncDecAttention(Layer):
         outputs = self.w_o(attention_output)
 
         return outputs
+
+def relative_attention_buckets(relative_position: tf.Tensor, bidirectional=True, num_buckets=32, max_distance=128) -> tf.Tensor:
+    relative_buckets = 0
+    if bidirectional:
+        num_buckets //= 2
+        relative_buckets = num_buckets if relative_position > 0 else 0
+        relative_position = tf.math.abs(relative_position)
+    else:
+        relative_position = -tf.math.minimum(relative_position, tf.zeros_like(relative_position))
+    # now relative_position is in the range [0, inf)
+
+    # half of the buckets are for exact increments in positions
+    max_exact = num_buckets // 2
+    is_small = relative_position < max_exact
+
+    # The other half of the buckets are for logarithmically bigger bins in positions up to max_distance
+    relative_position_if_large = tf.cast(max_exact + (
+        tf.math.log(tf.cast(relative_position, dtype=tf.float32) / max_exact)
+        / math.log(max_distance / max_exact)
+        * (num_buckets - max_exact)
+    ), dtype=tf.int32)
+    relative_position_if_large = tf.math.minimum(
+        relative_position_if_large, tf.fill(tf.shape(relative_position_if_large), num_buckets - 1)
+    )
+
+    relative_buckets += relative_position if is_small else relative_position_if_large
+    return relative_buckets
